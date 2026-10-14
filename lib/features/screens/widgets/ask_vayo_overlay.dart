@@ -1,0 +1,220 @@
+import 'package:flutter/material.dart';
+import '../../../core/models/intelligence_models.dart';
+import '../ai_counselor_screen.dart';
+
+class AskVayoFloatingWidget extends StatefulWidget {
+  const AskVayoFloatingWidget({super.key});
+
+  @override
+  State<AskVayoFloatingWidget> createState() => _AskVayoFloatingWidgetState();
+}
+
+class _AskVayoFloatingWidgetState extends State<AskVayoFloatingWidget> {
+  final bool _isVisible = true;
+
+  void _openCounselor(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AICounselorScreen(
+          profile: StudentProfile(
+            id: '1',
+            name: 'Aarav',
+            role: 'Class 8',
+            avatar: '👦',
+            gender: 'boy',
+            grade: 'Class 8',
+            active: true,
+          ),
+          initialPrompt: 'Hi Vayo! How can you help me today?',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isVisible) return const SizedBox.shrink();
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openCounselor(context),
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF0284C7),
+                Color(0xFF2563EB),
+                Color(0xFF7C3AED),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.40),
+                blurRadius: 16,
+                spreadRadius: 1,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Robot Avatar Circle
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF090D16),
+                  shape: BoxShape.circle,
+                ),
+                child: CustomPaint(
+                  painter: _VayoRobotAvatarPainter(),
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // Text & Badge Column
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'vayo',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // AI Chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00E5FF),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Text(
+                          'AI',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF090D16),
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  const Text(
+                    'Online',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFBAE6FD),
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(width: 6),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom Painter for Vayo's Robot Avatar Face
+class _VayoRobotAvatarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // 1. Top Cyan Glowing Dot
+    final cyanPaint = Paint()
+      ..color = const Color(0xFF00E5FF)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(center.dx, center.dy - 13), 2.5, cyanPaint);
+
+    // 2. Visor Rect Outer Outline
+    final visorOutlinePaint = Paint()
+      ..color = const Color(0xFF00E5FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final visorRect = Rect.fromCenter(
+      center: Offset(center.dx, center.dy - 2),
+      width: 22,
+      height: 11,
+    );
+    final visorRRect = RRect.fromRectAndRadius(visorRect, const Radius.circular(3.5));
+
+    final visorFillPaint = Paint()
+      ..color = const Color(0xFF030712)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(visorRRect, visorFillPaint);
+    canvas.drawRRect(visorRRect, visorOutlinePaint);
+
+    // 3. Cyan Robot Eyes (Two Rectangles/Dots inside Visor)
+    final eyePaint = Paint()
+      ..color = const Color(0xFF00E5FF)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx - 6, center.dy - 4, 4, 3.5),
+        const Radius.circular(1),
+      ),
+      eyePaint,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx + 2, center.dy - 4, 4, 3.5),
+        const Radius.circular(1),
+      ),
+      eyePaint,
+    );
+
+    // 4. Purple/Blue Mouth Line
+    final mouthPaint = Paint()
+      ..color = const Color(0xFF818CF8)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx - 5, center.dy + 8, 10, 2.5),
+        const Radius.circular(1.5),
+      ),
+      mouthPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
