@@ -238,11 +238,11 @@ class PersonalityBlendCard extends StatelessWidget {
   const PersonalityBlendCard({super.key, required this.personalityBlendData});
 
   void _openDetail(BuildContext context) {
-   /* Navigator.of(context).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const PersonalityDetailScreen(),
       ),
-    );*/
+    );
   }
 
   @override

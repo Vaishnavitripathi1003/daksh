@@ -209,11 +209,11 @@ class IntelligenceChartCard extends StatelessWidget {
   const IntelligenceChartCard({super.key, this.multipleIntelligenceData});
 
   void _openDetail(BuildContext context) {
-/*    Navigator.of(context).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MultiIntelligenceHomeDetailScreen(multipleIntelligence: multipleIntelligenceData,),
       ),
-    );*/
+    );
   }
 
   List<_BarData> _bars() {

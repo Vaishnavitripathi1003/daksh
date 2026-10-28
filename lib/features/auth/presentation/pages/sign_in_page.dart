@@ -497,7 +497,9 @@ class _SignInPageState extends State<SignInPage> {
                                     ),
                                   ),
                                   GestureDetector(
-                                    onTap: () {},
+                                    onTap: () {
+                                      context.push(AppRoutes.forgotPassword);
+                                    },
                                     child: Text(
                                       'Forgot password?',
                                       style: TextStyle(

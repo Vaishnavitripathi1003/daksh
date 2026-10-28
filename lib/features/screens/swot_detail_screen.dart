@@ -1,20 +1,25 @@
-import 'package:daksh/features/screens/widgets/swot_content.dart';
 import 'package:flutter/material.dart';
-import '../../core/models/reportResponse.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/Global/global_class.dart';
+import '../../core/network/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
-import 'widgets/ask_vayo_overlay.dart';
+import '../../core/storage/user_pref.dart';
+import '../../data/models/personalityswotmodel.dart';
+import 'widgets/swot_content.dart';
 
 /// Complete SWOT Analysis & Recommendations Screen.
-/// Shows real SWOT items for the Primary / Secondary personality type.
+/// Fetches and displays real SWOT & Recommendations data for the globally selected candidate.
 class SwotDetailScreen extends StatefulWidget {
   final String? primary;
   final String? secondary;
+  final bool initialShowRecommendations;
 
   const SwotDetailScreen({
     super.key,
     this.primary,
     this.secondary,
+    this.initialShowRecommendations = false,
   });
 
   @override
@@ -22,24 +27,101 @@ class SwotDetailScreen extends StatefulWidget {
 }
 
 class _SwotDetailScreenState extends State<SwotDetailScreen> {
-  bool _showRecommendations = false;
+  late bool _showRecommendations;
   bool _showSecondary = false; // false = Primary tab
 
-  String? get _primaryText => (widget.primary?.trim().isNotEmpty ?? false)
-      ? widget.primary!.trim()
-      : "";
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  String? get _secondaryText => widget.secondary?.trim();
+  PersonalitySwotResponse? _swotResponse;
+  PersonalityRecommendationsResponse? _recommendationsResponse;
+
+  @override
+  void initState() {
+    super.initState();
+    _showRecommendations = widget.initialShowRecommendations;
+    _fetchSwotData();
+  }
+
+  Future<void> _fetchSwotData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = UserPref(prefs).getToken() ?? '';
+      final userDataId = GlobalClass.selected_member.trim();
+
+      if (token.isEmpty || userDataId.isEmpty) {
+        throw Exception('Missing login session or selected user ID.');
+      }
+
+      final api = ApiService();
+      final responses = await Future.wait([
+        api.findDiscPersonalityCombinationsSwotAnalysisByUserDataId(
+          auth: token,
+          userDataId: userDataId,
+        ),
+        api.findDiscPersonalityCombinationsRecommendationsByUserDataId(
+          auth: token,
+          userDataId: userDataId,
+        ),
+      ]);
+
+      final swotRes = responses[0];
+      final recRes = responses[1];
+
+      PersonalitySwotResponse? swotData;
+      PersonalityRecommendationsResponse? recData;
+
+      if (swotRes.statusCode == 200 && swotRes.data != null) {
+        swotData = PersonalitySwotResponse.fromJson(swotRes.data);
+      }
+      if (recRes.statusCode == 200 && recRes.data != null) {
+        recData = PersonalityRecommendationsResponse.fromJson(recRes.data);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _swotResponse = swotData;
+        _recommendationsResponse = recData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching SWOT data: $e');
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  String get _primaryText {
+    final apiVal = _swotResponse?.personality.primary ?? '';
+    if (apiVal.isNotEmpty) return apiVal;
+    if (widget.primary?.trim().isNotEmpty ?? false) return widget.primary!.trim();
+    return "";
+  }
+
+  String get _secondaryText {
+    final apiVal = _swotResponse?.personality.secondary ?? '';
+    if (apiVal.isNotEmpty) return apiVal;
+    if (widget.secondary?.trim().isNotEmpty ?? false) return widget.secondary!.trim();
+    return "";
+  }
 
   /// True when Secondary is missing or identical to Primary.
   bool get _isSameType {
-    final p = (_primaryText ?? '').toLowerCase();
-    final s = (_secondaryText ?? '').toLowerCase();
+    final p = _primaryText.toLowerCase();
+    final s = _secondaryText.toLowerCase();
     return s.isEmpty || p == s;
   }
 
   /// Always falls back to Primary when only one tab is shown.
-  String? get _selectedText =>
+  String get _selectedText =>
       (_showSecondary && !_isSameType) ? _secondaryText : _primaryText;
 
   @override
@@ -48,8 +130,24 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
     final isNarrow = context.isNarrowMobile;
 
     final selectedLabel =
-    (_selectedText?.trim().isNotEmpty ?? false) ? _selectedText! : 'Dominant';
-    final swot = SwotResult.from(_selectedText, null);
+        (_selectedText.trim().isNotEmpty) ? _selectedText : 'Dominant';
+    final fallbackSwot = SwotResult.from(_selectedText, null);
+
+    final List<String> strengths = (_swotResponse?.data.strengths.isNotEmpty ?? false)
+        ? _swotResponse!.data.strengths
+        : fallbackSwot.strengths;
+
+    final List<String> weaknesses = (_swotResponse?.data.weaknesses.isNotEmpty ?? false)
+        ? _swotResponse!.data.weaknesses
+        : fallbackSwot.weaknesses;
+
+    final List<String> opportunities = (_swotResponse?.data.opportunities.isNotEmpty ?? false)
+        ? _swotResponse!.data.opportunities
+        : fallbackSwot.opportunities;
+
+    final List<String> threats = (_swotResponse?.data.threats.isNotEmpty ?? false)
+        ? _swotResponse!.data.threats
+        : fallbackSwot.threats;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -74,29 +172,76 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppTheme.textPrimary),
+            onPressed: _fetchSwotData,
+            tooltip: 'Refresh SWOT Data',
+          ),
+        ],
       ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _showRecommendations
-                    ? _buildRecommendationsView(context, isNarrow)
-                    : _buildSwotMatrixView(context, isNarrow, selectedLabel, swot),
-              ),
-            ),
-
-            // Floating Ask Vayo Overlay Widget
-           /* const Positioned(
-              right: 16,
-              bottom: 20,
-              child: AskVayoFloatingWidget(),
-            ),*/
-          ],
-        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF2563EB),
+                ),
+              )
+            : _errorMessage != null && _swotResponse == null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              size: 48, color: Colors.redAccent),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Failed to load SWOT data',
+                            style: TextStyle(
+                              fontSize: context.scaleFont(16),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _fetchSwotData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _showRecommendations
+                              ? _buildRecommendationsView(context, isNarrow)
+                              : _buildSwotMatrixView(
+                                  context,
+                                  isNarrow,
+                                  selectedLabel,
+                                  strengths,
+                                  weaknesses,
+                                  opportunities,
+                                  threats,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -104,7 +249,19 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
   // ───────────────────────── SWOT MATRIX VIEW ─────────────────────────
 
   Widget _buildSwotMatrixView(
-      BuildContext context, bool isNarrow, String label, SwotResult swot) {
+    BuildContext context,
+    bool isNarrow,
+    String label,
+    List<String> strengths,
+    List<String> weaknesses,
+    List<String> opportunities,
+    List<String> threats,
+  ) {
+    final bool isEmpty = strengths.isEmpty &&
+        weaknesses.isEmpty &&
+        opportunities.isEmpty &&
+        threats.isEmpty;
+
     return Column(
       key: ValueKey('SwotMatrixView_$_showSecondary'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +270,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
         _buildToggle(),
         const SizedBox(height: 14),
 
-        if (swot.isEmpty)
+        if (isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
@@ -138,7 +295,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
                   cardBg: const Color(0xFFF0FDF4),
                   borderColor: const Color(0xFFBBF7D0),
                   dotColor: const Color(0xFF16A34A),
-                  items: swot.strengths,
+                  items: strengths,
                 ),
               ),
               const SizedBox(width: 12),
@@ -152,7 +309,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
                   cardBg: const Color(0xFFFFFBEB),
                   borderColor: const Color(0xFFFED7AA),
                   dotColor: const Color(0xFFEA580C),
-                  items: swot.weaknesses,
+                  items: weaknesses,
                 ),
               ),
             ],
@@ -174,7 +331,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
                   cardBg: const Color(0xFFEFF6FF),
                   borderColor: const Color(0xFFBFDBFE),
                   dotColor: const Color(0xFF2563EB),
-                  items: swot.opportunities,
+                  items: opportunities,
                 ),
               ),
               const SizedBox(width: 12),
@@ -188,7 +345,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
                   cardBg: const Color(0xFFFEF2F2),
                   borderColor: const Color(0xFFFECDD3),
                   dotColor: const Color(0xFFE11D48),
-                  items: swot.threats,
+                  items: threats,
                 ),
               ),
             ],
@@ -231,7 +388,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'You exhibit strong $label leadership potential. Focus on improving patience and delegation skills to achieve even greater success in life.',
+                _aiInsightText(label),
                 style: TextStyle(
                   fontSize: context.scaleFont(12.5),
                   color: const Color(0xFF334155),
@@ -278,6 +435,18 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
         const SizedBox(height: 80),
       ],
     );
+  }
+
+  String _aiInsightText(String label) {
+    final d = _swotResponse?.data;
+    if (d != null) {
+      if (d.detailedStrengths.trim().isNotEmpty) {
+        return d.detailedStrengths.trim();
+      } else if (d.archetype.trim().isNotEmpty) {
+        return '${d.archetype} (${d.combination}): Focus on leveraging key strengths while mitigating weaknesses for balanced growth.';
+      }
+    }
+    return 'You exhibit strong $label leadership potential. Focus on improving patience and delegation skills to achieve even greater success in life.';
   }
 
   // ───────────────────────── PRIMARY / SECONDARY TOGGLE ─────────────────────────
@@ -338,10 +507,10 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
     return Row(
       children: [
         tab('Primary', _primaryText, !_showSecondary,
-                () => setState(() => _showSecondary = false)),
+            () => setState(() => _showSecondary = false)),
         const SizedBox(width: 10),
         tab('Secondary', _secondaryText, _showSecondary,
-                () => setState(() => _showSecondary = true)),
+            () => setState(() => _showSecondary = true)),
       ],
     );
   }
@@ -443,6 +612,38 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
   // ───────────────────────── RECOMMENDATIONS VIEW ─────────────────────────
 
   Widget _buildRecommendationsView(BuildContext context, bool isNarrow) {
+    final recs = _recommendationsResponse?.data.strategicRecommendations;
+
+    final List<String> improveWeaknesses =
+        (recs?.improveWeaknesses.isNotEmpty ?? false)
+            ? recs!.improveWeaknesses
+            : [
+                'Practice patience with mindfulness exercises',
+                'Join public speaking club',
+                'Work on active listening skills',
+                'Use daily planner for better consistency',
+              ];
+
+    final List<String> utilizeOpportunities =
+        (recs?.utilizeOpportunities.isNotEmpty ?? false)
+            ? recs!.utilizeOpportunities
+            : [
+                'Explore leadership development programs',
+                'Participate in hackathons and competitions',
+                'Network with industry professionals',
+                'Take up entrepreneurial projects',
+              ];
+
+    final List<String> reduceThreats =
+        (recs?.reduceThreats.isNotEmpty ?? false)
+            ? recs!.reduceThreats
+            : [
+                'Follow a strict time management routine',
+                'Avoid multitasking and social media distraction',
+                'Take regular breaks to avoid burnout',
+                'Practice stress management techniques',
+              ];
+
     return Column(
       key: const ValueKey('RecommendationsView'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,12 +659,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
           cardBg: const Color(0xFFFFFBEB),
           borderColor: const Color(0xFFFED7AA),
           dotColor: const Color(0xFFEA580C),
-          items: [
-            'Practice patience with mindfulness exercises',
-            'Join public speaking club',
-            'Work on active listening skills',
-            'Use daily planner for better consistency',
-          ],
+          items: improveWeaknesses,
         ),
 
         const SizedBox(height: 16),
@@ -479,12 +675,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
           cardBg: const Color(0xFFEFF6FF),
           borderColor: const Color(0xFFBFDBFE),
           dotColor: const Color(0xFF2563EB),
-          items: [
-            'Explore leadership development programs',
-            'Participate in hackathons and competitions',
-            'Network with industry professionals',
-            'Take up entrepreneurial projects',
-          ],
+          items: utilizeOpportunities,
         ),
 
         const SizedBox(height: 16),
@@ -500,12 +691,7 @@ class _SwotDetailScreenState extends State<SwotDetailScreen> {
           cardBg: const Color(0xFFFEF2F2),
           borderColor: const Color(0xFFFECDD3),
           dotColor: const Color(0xFFE11D48),
-          items: [
-            'Follow a strict time management routine',
-            'Avoid multitasking and social media distraction',
-            'Take regular breaks to avoid burnout',
-            'Practice stress management techniques',
-          ],
+          items: reduceThreats,
         ),
 
         const SizedBox(height: 80),

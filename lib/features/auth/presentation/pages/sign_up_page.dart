@@ -23,6 +23,7 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   int _activeTab = 1; // 0: Sign In, 1: Create Account
   bool _rememberMe = true;
+  bool _obscurePassword = true;
   String _selectedClass = 'Class 8';
 
   final _nameController = TextEditingController();
@@ -108,12 +109,7 @@ class _SignUpPageState extends State<SignUpPage> {
       /*    final prefs = await SharedPreferences.getInstance();
           final userPref = UserPref(prefs);
           final appPref = AppPref(prefs);
-
-//6ace0830db5b2d0013c1f257
-//6ace0830db5b2d0013c1f257
-//6ace083cdb5b2d0013c1f25f
-//
-          await userPref.clearToken();
+     await userPref.clearToken();
           await appPref.clearToken();
 
           // Clear all SQLite data, Global selections, and cached reports
@@ -680,7 +676,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             style: const TextStyle(
                               color: Color(0xFF0F172A),
                               fontWeight: FontWeight.w600,
@@ -688,6 +684,20 @@ class _SignUpPageState extends State<SignUpPage> {
                             decoration: _buildInputDecoration(
                               'Enter Password',
                               Icons.lock_outline_rounded,
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: const Color(0xFF64748B),
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
                             ),
                             validator: (v) => (v == null || v.length < 6)
                                 ? 'Password must be at least 6 characters'
@@ -875,13 +885,18 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(
+    String hint,
+    IconData icon, {
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
       prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
+      suffixIcon: suffixIcon,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 14,

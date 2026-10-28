@@ -11,6 +11,7 @@ import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/screens/camerawork/camera_scan_screen.dart';
 import '../../features/screens/dashboard.dart';
 import '../../features/screens/home_screen.dart';
+import '../../features/screens/reset_password_screen.dart';
 import '../../features/screens/widgets/hand_capture_graphic.dart';
 import 'app_routes.dart';
 
@@ -48,6 +49,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.signUp,
         builder: (context, state) => const SignUpPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
       GoRoute(
         path: AppRoutes.languageSelection,

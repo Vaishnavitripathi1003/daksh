@@ -143,11 +143,11 @@ class BrainDominanceCard extends StatelessWidget {
   const BrainDominanceCard({super.key, required this.currentProfile});
 
   void _openDetail(BuildContext context) {
-    /*Navigator.of(context).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BrainDominanceHomeDetailScreen(brainDominance: currentProfile),
       ),
-    );*/
+    );
   }
 
   @override

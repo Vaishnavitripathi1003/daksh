@@ -37,7 +37,8 @@ data class FingerPrintScan1Request(
     @SerializedName("fingerRightLittle") val fingerRightLittle: FingerDataY? = null,
     @SerializedName("fingerRightMiddle") val fingerRightMiddle: FingerDataY? = null,
     @SerializedName("fingerRightRing") val fingerRightRing: FingerDataY? = null,
-    @SerializedName("fingerRightThumb") val fingerRightThumb: FingerDataY? = null
+    @SerializedName("fingerRightThumb") val fingerRightThumb: FingerDataY? = null,
+    @SerializedName("isSubmitted") val isSubmitted: Boolean = false
 )
 
 interface ApiService {
@@ -64,6 +65,28 @@ interface ApiService {
         @Query("userData_id") userDataId: String,
         @Body fingerPrintScan1Request: FingerPrintScan1Request
     ): Response<FingerScanApiResponse>
+
+///todo new work raw image upload
+
+    @Multipart
+    @PATCH("fingerprintscanImageSave")
+    suspend fun fingerprintscanImageSave(
+        @Header("Authorization") auth: String,
+        @Query("userData_id") userDataId: String,
+        @Part leftThumbOrg: MultipartBody.Part?,
+        @Part leftIndexOrg: MultipartBody.Part?,
+        @Part leftMiddleOrg: MultipartBody.Part?,
+        @Part leftRingOrg: MultipartBody.Part?,
+        @Part leftLittleOrg: MultipartBody.Part?,
+        @Part rightThumbOrg: MultipartBody.Part?,
+        @Part rightIndexOrg: MultipartBody.Part?,
+        @Part rightMiddleOrg: MultipartBody.Part?,
+        @Part rightRingOrg: MultipartBody.Part?,
+        @Part rightLittleOrg: MultipartBody.Part?
+    ): Response<FingerScanApiResponse>
+
+
+
 }
 
 object RetrofitInstance {

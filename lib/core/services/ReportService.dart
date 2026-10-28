@@ -37,13 +37,37 @@ void logFullReportData(String tag, dynamic data) {
 class ReportService {
   /// Handle the common backend representations of the generation flag.
   /// Never infer readiness from a scan-upload response or from SQLite.
-  static bool isReportGenerated(dynamic response) {
+ /* static bool isReportGenerated(dynamic response) {
     if (response is! Map) return false;
     final dynamic field = response['isReportGenerated'] ??
         (response['data'] is Map ? response['data']['isReportGenerated'] : null);
     return field == true || field == 1 ||
         field?.toString().toLowerCase() == 'true' ||
         field?.toString() == '1';
+  }*/
+  static bool isReportGenerated(dynamic response) {
+    debugPrint(
+      'isReportGenerated INPUT -> type=${response.runtimeType}, value=$response',
+    );
+
+    if (response is! Map) {
+      debugPrint('isReportGenerated RESULT -> false (response is not a Map)');
+      return false;
+    }
+
+    final dynamic field = response['isReportGenerated'] ??
+        (response['data'] is Map ? response['data']['isReportGenerated'] : null);
+
+    final bool result = field == true ||
+        field == 1 ||
+        field?.toString().toLowerCase() == 'true' ||
+        field?.toString() == '1';
+
+    debugPrint(
+      'isReportGenerated FIELD -> type=${field.runtimeType}, value=$field | RESULT -> $result',
+    );
+
+    return result;
   }
 
   final ApiService _apiService;

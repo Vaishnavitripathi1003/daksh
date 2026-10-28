@@ -1,6 +1,12 @@
 package com.daksh.daksh.ui.screens
-
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Context
+import android.net.Uri
+import android.graphics.ImageDecoder
 import android.graphics.Bitmap
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -42,6 +48,7 @@ import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
@@ -134,6 +141,45 @@ fun ScanStepScreen(
 
     var pendingResultForConfirmation by remember { mutableStateOf<EnhancedImageResult?>(null) }
     var pendingCrop by remember { mutableStateOf<PendingCrop?>(null) }
+
+
+
+
+    ///todo for gallery
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            showScanner = true
+            isProcessing = true
+            val capturedStep = step
+            val bgHandler = onImageCaptured
+            scope.launch(Dispatchers.IO) {
+                val bitmap = loadBitmapFromUri(context, uri)
+                if (bitmap != null) {
+                    if (bgHandler != null) {
+                        val crop = try {
+                            FingerprintProcessor.extractFingertipOnly(context, bitmap, capturedStep)
+                        } catch (e: Throwable) { null }
+                        launch(Dispatchers.Main) {
+                            isProcessing = false
+                            pendingCrop = PendingCrop(capturedStep, bitmap, crop ?: bitmap)
+                        }
+                    } else {
+                        val result = FingerprintProcessor.processAndEnhanceImage(context, bitmap, capturedStep)
+                        launch(Dispatchers.Main) {
+                            isProcessing = false
+                            pendingResultForConfirmation = result
+                        }
+                    }
+                } else {
+                    launch(Dispatchers.Main) {
+                        isProcessing = false
+                    }
+                }
+            }
+        }
+    }
 
     var localCaptured by remember { mutableStateOf<Map<ScanStep, Bitmap>>(mapOf()) }
     val capturedMap: Map<ScanStep, Bitmap> = previews ?: localCaptured
@@ -513,7 +559,7 @@ fun ScanStepScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "Camera popup me ${step.fingerName} scan karein",
+                                "Scan ${step.fingerName}",
                                 color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp
                             )
                         }
@@ -637,6 +683,9 @@ fun ScanStepScreen(
                             },
                             onImageCaptured = { bitmap ->
                                 captureTrigger = false
+                                //todo new work
+                                if (currentStepIndex == steps.lastIndex) isTorchEnabled = false
+                                //todo new work
                                 val bgHandler = onImageCaptured
                                 if (bgHandler != null) {
                                     val capturedStep = step
@@ -736,6 +785,25 @@ fun ScanStepScreen(
                                     tint = Color.White, modifier = Modifier.size(32.dp)
                                 )
                             }
+
+                            ///todo for gallery
+                            IconButton(
+                                onClick = {
+                                    galleryLauncher.launch("image/*")
+                                },
+                                modifier = Modifier
+                                    .background(Color.DarkGray.copy(alpha = 0.7f), CircleShape)
+                                    .size(46.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Image, "Gallery",
+                                    tint = NeonCyan, modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            ///todo for gallery
+
+
                         }
                     }
                 }
@@ -848,12 +916,38 @@ fun ScanStepScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF991B1B))
                         ) { Text("Retake", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
 
+                       /* Button(
+                            onClick = {
+                                val accepted = cropToReview
+                                pendingCrop = null
+                                //closeScanner()
+                                onImageCaptured?.invoke(accepted.step, accepted.raw, accepted.crop)
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF15803D))
+                        ) {
+                            Icon(Icons.Default.Check, "Accept", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Accept", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }*/
+                        // ✅ Keeps camera scanner open for Finger #2, #3, etc.
                         Button(
                             onClick = {
                                 val accepted = cropToReview
                                 pendingCrop = null
-                                closeScanner()
                                 onImageCaptured?.invoke(accepted.step, accepted.raw, accepted.crop)
+
+                                val allCaptured = steps.all { s -> capturedMap.containsKey(s) || s == accepted.step }
+                                if (allCaptured) {
+                                    closeScanner() // Closes only on finger #10
+                                } else {
+                                    showScanner = true // Keeps camera scanner open for next finger
+                                    captureTrigger = false
+                                    isProcessing = false
+                                    isFocusCorrect = false
+                                    detectedFingertipOffset = null
+                                }
                             },
                             modifier = Modifier.weight(1f).height(48.dp),
                             shape = RoundedCornerShape(14.dp),
@@ -1004,6 +1098,9 @@ fun ScanStepScreen(
     }
 }
 
+
+
+
 private class PendingCrop(val step: ScanStep, val raw: Bitmap, val crop: Bitmap)
 
 private fun getStepCodeAndMapping(step: ScanStep): Pair<String, String> {
@@ -1034,5 +1131,65 @@ private fun getStepCodeAndMapping(step: ScanStep): Pair<String, String> {
             Pair("L2-L5", "Right Hemisphere Lobes (4-Fingers Cluster)")
         ScanStep.RIGHT_FOUR_FINGERS_GROUP ->
             Pair("R2-R5", "Left Hemisphere Lobes (4-Fingers Cluster)")
+    }
+}
+
+private fun loadBitmapFromUri(context: android.content.Context, uri: Uri): Bitmap? {
+    return try {
+        val originalBitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                decoder.isMutableRequired = true
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        } ?: return null
+
+        val softwareBitmap = if (originalBitmap.config != Bitmap.Config.ARGB_8888 || !originalBitmap.isMutable) {
+            originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        } else {
+            originalBitmap
+        }
+
+        val rotatedBitmap = try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                val orientation = exif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+                val rotationDegrees = when (orientation) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+                if (rotationDegrees != 0f) {
+                    val matrix = Matrix().apply { postRotate(rotationDegrees) }
+                    Bitmap.createBitmap(softwareBitmap, 0, 0, softwareBitmap.width, softwareBitmap.height, matrix, true)
+                } else {
+                    softwareBitmap
+                }
+            } ?: softwareBitmap
+        } catch (e: Throwable) {
+            softwareBitmap
+        }
+
+        val maxDim = maxOf(rotatedBitmap.width, rotatedBitmap.height)
+        val scaledBitmap = if (maxDim > 1920) {
+            val scale = 1920f / maxDim
+            val targetWidth = (rotatedBitmap.width * scale).toInt()
+            val targetHeight = (rotatedBitmap.height * scale).toInt()
+            Bitmap.createScaledBitmap(rotatedBitmap, targetWidth, targetHeight, true)
+        } else {
+            rotatedBitmap
+        }
+
+        com.daksh.daksh.ui.camera.enhanceImageClarity(scaledBitmap)
+    } catch (e: Throwable) {
+        e.printStackTrace()
+        null
     }
 }

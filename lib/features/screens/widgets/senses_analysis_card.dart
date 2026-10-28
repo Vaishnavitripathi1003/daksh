@@ -129,11 +129,11 @@ class SensesAnalysisCard extends StatelessWidget {
   const SensesAnalysisCard({super.key, required this.currentProfile});
 
   void _openDetail(BuildContext context) {
-   /* Navigator.of(context).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SensesHomeDetailScreen(senses: currentProfile,),
       ),
-    );*/
+    );
   }
 
   /// 0..1 share -> "88%"

@@ -203,8 +203,8 @@ object FingerprintAnalysis {
         DOUBLE_LOOP         ("Double Loop",      "W5"),
         ULNAR_LOOP          ("Ulnar Loop",       "L"),
         RADIAL_LOOP         ("Radial Loop",      "R"),
-        ARCH_ULNAR_LOOP     ("Arch Ulnar Loop",  "L1"),
-        ARCH_RADIAL_LOOP    ("Arch Radial Loop", "R1"),
+        ARCH_ULNAR_LOOP     ("Arch Ulnar Loop",  "X3"),
+        ARCH_RADIAL_LOOP    ("Arch Radial Loop", "X4"),
         ARCH                ("Arch",             "X1"),
         ACCIDENTAL          ("Accidental",       "W")
     }

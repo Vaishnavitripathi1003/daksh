@@ -13,4 +13,5 @@ abstract class AppRoutes {
   static const String cameraScan = '/camera-scan';
   static const String profile = '/profile';
   static const String settings = '/settings';
+  static const String forgotPassword = '/forgot-password';
 }

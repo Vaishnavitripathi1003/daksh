@@ -2,6 +2,7 @@ package com.daksh.daksh
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.daksh.daksh.model.EnhancedImageResult
 import com.daksh.daksh.model.ScanStep
 import org.json.JSONArray
@@ -120,6 +121,37 @@ object ScanResultStore {
         return deleted
     }
 
+    //////////todo manage local start
+    private const val TAG_OFFLINE = "FP_OFFLINE"
+    private val manifestLock = Any()
+
+    private fun userScanDir(context: Context, userDataId: String): File {
+        val cleanId = if (userDataId.isBlank()) "default_session"
+        else userDataId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        return File(context.filesDir, "$DIR_NAME/$cleanId").apply { mkdirs() }
+    }
+
+    private fun updateManifest(dir: File, userDataId: String, step: ScanStep, entry: JSONObject) =
+        synchronized(manifestLock) {
+            val file = File(dir, "session_manifest.json")
+            val json = try { JSONObject(file.readText()) } catch (_: Exception) { JSONObject() }
+            json.put(step.name, entry)
+            json.put("lastUpdated", System.currentTimeMillis())
+            json.put("userDataId", userDataId)
+            val tmp = File(dir, "session_manifest.json.tmp")
+            tmp.writeText(json.toString(2))
+            if (!tmp.renameTo(file)) {
+                if (file.exists()) file.delete()
+                if (!tmp.renameTo(file)) throw IOException("Could not publish manifest")
+            }
+        }
+    /////todo manage local end
+
+
+
+
+
+
     private fun toJson(
         step: ScanStep,
         r: EnhancedImageResult,
@@ -188,4 +220,168 @@ object ScanResultStore {
             if (targetBmp !== bitmap) targetBmp.recycle()
         }
     }
+
+
+
+
+    //////////todo manage local start
+    data class SavedUserCapture(
+        val step: ScanStep,
+        val rawPath: String,
+        val cropPath: String,
+        val enhancedPath: String,
+        val rawBitmap: Bitmap,
+        val cropBitmap: Bitmap,
+        val enhancedBitmap: Bitmap,
+        val result: EnhancedImageResult,
+        val isEnhanced: Boolean
+    )
+    fun saveQuickCapture(
+        context: Context,
+        userDataId: String,
+        step: ScanStep,
+        rawBitmap: Bitmap,
+        cropBitmap: Bitmap
+    ): JSONObject {
+        val dir = userScanDir(context, userDataId)
+        val originalFile = File(dir, "${step.name}_original.jpg")
+        val cropFile = File(dir, "${step.name}_crop.jpg")
+
+        writeJpeg(rawBitmap, originalFile)
+        writeJpeg(cropBitmap, cropFile)
+
+        val json = JSONObject().apply {
+            put("step", step.name)
+            put("handSide", step.handSide.name)
+            put("fingerName", step.fingerName)
+            put("fingerCount", step.fingerCount)
+            put("pattern", "Captured")
+            put("description", "Scanned Fingerprint")
+            put("confidence", 0.90)
+            put("topPredictions", JSONArray())
+            put("clarity", 80)
+            put("contrastBoost", 0)
+            put("resolution", "${cropBitmap.width}x${cropBitmap.height}")
+            put("originalPath", originalFile.absolutePath)
+            put("cropPath", cropFile.absolutePath)
+            put("enhancedPath", cropFile.absolutePath)
+            put("enhanced", false)
+        }
+        updateManifest(dir, userDataId, step, json)
+        Log.i(TAG_OFFLINE, "Quick saved ${step.name} for user [$userDataId]")
+        return json
+    }
+
+    suspend fun saveUserCapture(
+        context: Context,
+        userDataId: String,
+        result: EnhancedImageResult
+    ): JSONObject = coroutineScope {
+        val dir = userScanDir(context, userDataId)
+        val step = result.step
+        val originalFile = File(dir, "${step.name}_original.jpg")
+        val enhancedFile = File(dir, "${step.name}_enhanced.jpg")
+        val cropFile = File(dir, "${step.name}_crop.jpg")
+
+        // Don't overwrite the raw image saved by saveQuickCapture
+        val enhancedJob = async(Dispatchers.IO) { writeJpeg(result.enhancedBitmap, enhancedFile) }
+        val originalJob = if (!originalFile.exists())
+            async(Dispatchers.IO) { writeJpeg(result.originalBitmap, originalFile) } else null
+        enhancedJob.await()
+        originalJob?.await()
+
+        val json = toJson(step, result, originalFile, enhancedFile).apply {
+            put("cropPath", (if (cropFile.exists()) cropFile else originalFile).absolutePath)
+            put("enhanced", true)
+        }
+        withContext(Dispatchers.IO) { updateManifest(dir, userDataId, step, json) }
+        Log.i(TAG_OFFLINE, "Enhanced save for ${step.name} for user [$userDataId]")
+        json
+    }
+    suspend fun loadUserSession(
+        context: Context,
+        userDataId: String
+    ): Map<ScanStep, SavedUserCapture> = withContext(Dispatchers.IO) {
+        val dir = userScanDir(context, userDataId)
+        val manifestFile = File(dir, "session_manifest.json")
+        if (!manifestFile.exists()) return@withContext emptyMap()
+
+        val resultMap = mutableMapOf<ScanStep, SavedUserCapture>()
+        try {
+            val manifest = JSONObject(manifestFile.readText())
+            val keys = manifest.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                if (key == "lastUpdated" || key == "userDataId") continue
+                val step = ScanStep.entries.firstOrNull { it.name == key } ?: continue
+                val item = manifest.optJSONObject(key) ?: continue
+
+                val origPath = item.optString("originalPath", "")
+                val cropPath = item.optString("cropPath", "")
+                val enhPath = item.optString("enhancedPath", "")
+                val origFile = File(origPath)
+                val cropFile = if (cropPath.isNotBlank()) File(cropPath) else origFile
+                val enhFile = File(enhPath)
+
+                if (!isValidJpeg(origFile) || !isValidJpeg(enhFile)) {
+                    Log.w(TAG_OFFLINE, "Corrupt JPEGs for ${step.name}, skipping")
+                    continue
+                }
+
+                val rawBitmap = decodeBitmapFromFile(origFile) ?: continue
+                val cropBitmap = if (isValidJpeg(cropFile)) decodeBitmapFromFile(cropFile) ?: rawBitmap else rawBitmap
+                val enhancedBitmap = decodeBitmapFromFile(enhFile) ?: continue
+
+                val result = EnhancedImageResult(
+                    step = step,
+                    originalBitmap = cropBitmap,
+                    enhancedBitmap = enhancedBitmap,
+                    predictedPattern = item.optString("pattern", "Loop"),
+                    patternDescription = item.optString("description", "Analyzed"),
+                    confidenceScore = item.optDouble("confidence", 0.95).toFloat(),
+                    topPredictions = emptyList(),
+                    clarityScore = item.optInt("clarity", 80),
+                    contrastBoost = item.optInt("contrastBoost", 0),
+                    resolutionText = item.optString("resolution", "1000x1000"),
+                    enhancedPath = enhPath,
+                    rawPath = origPath
+                )
+
+                resultMap[step] = SavedUserCapture(
+                    step, origPath, cropFile.absolutePath, enhPath,
+                    rawBitmap, cropBitmap, enhancedBitmap, result,
+                    isEnhanced = item.optBoolean("enhanced", false)
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG_OFFLINE, "Error loading session for $userDataId", e)
+        }
+        resultMap
+    }
+    fun clearUserSession(context: Context, userDataId: String): Boolean {
+        val dir = userScanDir(context, userDataId)
+        dir.listFiles()?.forEach { it.delete() }
+        return dir.delete()
+    }
+
+    private fun decodeBitmapFromFile(file: File, maxDim: Int = 1600): Bitmap? {
+        if (!file.exists() || file.length() <= 0) return null
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            val w = bounds.outWidth
+            val h = bounds.outHeight
+            if (w <= 0 || h <= 0) return null
+
+            var sample = 1
+            while (w / (sample * 2) >= maxDim && h / (sample * 2) >= maxDim) sample *= 2
+
+            val opts = BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            BitmapFactory.decodeFile(file.absolutePath, opts)
+        } catch (e: Exception) { null }
+    }
+    /////todo manage local end
 }

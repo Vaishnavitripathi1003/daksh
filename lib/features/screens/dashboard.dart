@@ -687,7 +687,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }*/
+import 'package:daksh/core/Global/global_class.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/services/firebase_notification_manager.dart';
+import '../../core/storage/user_pref.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
 import 'assessment_screen.dart';
@@ -709,10 +714,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
 
-  /// Scan dabane par Home tab kholo aur Home ka scan flow chalao.
-  /// Upload, polling, SQLite update, reload sab Home khud handle karta hai.
+  @override
+  void initState() {
+    super.initState();
+    _setupFirebaseNotifications();
+  }
+
+  Future<void> _setupFirebaseNotifications() async {
+    String baseUrl = ApiConstants.baseUrl;
+    final prefs = await SharedPreferences.getInstance();
+    final userPref = UserPref(prefs);
+    final authToken = userPref.getToken() ?? '';
+
+    if (authToken.isNotEmpty) {
+      FirebaseNotificationManager().initialize(
+        baseUrl: baseUrl,
+        userAuthToken: authToken,
+        onNotificationTap: () {
+          // Switch Dashboard tab to Report screen (Index 2)
+          setState(() {
+            _currentIndex = 2; // Index 2 is ReportScreen
+          });
+        },
+      );
+    }
+  }
+
   void _onScanTap() {
     setState(() => _currentIndex = 0);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _homeKey.currentState?.openScan();
     });
@@ -729,7 +759,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           HomeScreen(key: _homeKey),
           const AssessmentScreen(),
           const ReportScreen(),
-          const ProfileScreen(),
+          ProfileScreen(onScanRequested: _onScanTap),
         ],
       ),
       bottomNavigationBar: _buildResponsiveBottomNavigationBar(context),
@@ -821,7 +851,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const Color inactiveColor = Color(0xFF94A3B8);
 
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        /*if(_currentIndex==3)
+          {
+
+          }
+        setState(() => _currentIndex = index);*/
+        final previousIndex = _currentIndex;
+        setState(() => _currentIndex = index);
+
+        // Profile -> Home: refresh candidate data
+        if (previousIndex == 3 && index == 0) {
+          _homeKey.currentState?.reloadCandidates();
+        }
+
+      },
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: Column(

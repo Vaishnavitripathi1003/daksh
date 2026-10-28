@@ -331,9 +331,9 @@ class _MultiIntelligenceHomeDetailScreenState
                   const SizedBox(height: 24),
 
                   // 7. Unlock In-Depth Report Banner
-                  _buildUnlockBanner(context, isNarrow),
+                 /* _buildUnlockBanner(context, isNarrow),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 80),*/
                 ],
               ),
             ),

@@ -47,6 +47,7 @@ class _DakshIntelligenceDrawerState extends State<DakshIntelligenceDrawer> {
     super.initState();
     GlobalClass.selectedMemberNotifier.addListener(_selectedChanged);
     DashboardReportStatusController.instance.state.addListener(_onDashboardReportStatus);
+    //_loadAdminDataFromLocal();
     _loadAdminAndCandidates();
   }
 
@@ -214,7 +215,7 @@ class _DakshIntelligenceDrawerState extends State<DakshIntelligenceDrawer> {
           break;
         case 'personality':
           if (report.personality != null) {
-            destination = PersonalityDetailScreen(personality: report.personality);
+            destination = PersonalityDetailScreen(/*personality: report.personality*/);
           }
           break;
         case 'swot':

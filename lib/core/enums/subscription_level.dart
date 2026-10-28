@@ -1,7 +1,7 @@
 enum SubscriptionLevel {
-  level1('SUBSCRIPTION_LEVEL_1'),
-  level2('SUBSCRIPTION_LEVEL_2'),
-  level3('SUBSCRIPTION_LEVEL_3');
+  level1('subcription1'),
+  level2('subcription2'),
+  level3('subcription3');
 
   final String value;
   const SubscriptionLevel(this.value);

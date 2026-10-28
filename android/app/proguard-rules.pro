@@ -35,3 +35,7 @@
 
 
 -keep class kotlin.coroutines.Continuation
+# Flutter Play Core (deferred components) - not used, ignore missing classes
+-dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+-dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication

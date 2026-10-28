@@ -455,7 +455,7 @@ private fun imageProxyToBitmap(image: ImageProxy, maxDim: Int = 1200): Bitmap {
 /**
  * Enhances image clarity, contrast, and edge sharpness for crisp details.
  */
-private fun enhanceImageClarity(input: Bitmap): Bitmap {
+fun enhanceImageClarity(input: Bitmap): Bitmap {
     val output = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 

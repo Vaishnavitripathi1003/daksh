@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/intelligence_models.dart';
 import '../ai_counselor_screen.dart';
+import '../chatWork/DiscChatPage.dart';
+import '../chatWork/disc_chat_screen.dart';
 
 class AskVayoFloatingWidget extends StatefulWidget {
-  const AskVayoFloatingWidget({super.key});
+  String?primary;
+  String?secondary;
+   AskVayoFloatingWidget(String primary, String secondary, {super.key});
 
   @override
   State<AskVayoFloatingWidget> createState() => _AskVayoFloatingWidgetState();
@@ -13,22 +17,7 @@ class _AskVayoFloatingWidgetState extends State<AskVayoFloatingWidget> {
   final bool _isVisible = true;
 
   void _openCounselor(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const AICounselorScreen(
-          profile: StudentProfile(
-            id: '1',
-            name: 'Aarav',
-            role: 'Class 8',
-            avatar: '👦',
-            gender: 'boy',
-            grade: 'Class 8',
-            active: true,
-          ),
-          initialPrompt: 'Hi Vayo! How can you help me today?',
-        ),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => DiscChatScreen(primary: widget.primary,secondary:widget.secondary)));
   }
 
   @override

@@ -93,6 +93,9 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                         val intent = Intent(this, ScanActivity::class.java).apply {
                             putExtra(ScanActivity.EXTRA_MODE, call.argument<String>("mode") ?: "group")
+                            //////////todo manage local start
+                            putExtra("USER_DATA_ID", call.argument<String>("userDataId") ?: "")
+                            /////todo manage local end
                             call.argument<List<String>>("steps")?.let {
                                 putStringArrayListExtra(ScanActivity.EXTRA_STEPS, ArrayList(it))
                             }

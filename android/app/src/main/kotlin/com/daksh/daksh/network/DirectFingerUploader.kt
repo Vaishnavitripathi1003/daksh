@@ -53,7 +53,8 @@ object DirectFingerUploader {
         fingerRightIndex = scannedMap[ScanStep.RIGHT_INDEX_IND]?.toFingerDataY(),
         fingerRightMiddle = scannedMap[ScanStep.RIGHT_MIDDLE_IND]?.toFingerDataY(),
         fingerRightRing = scannedMap[ScanStep.RIGHT_RING_IND]?.toFingerDataY(),
-        fingerRightLittle = scannedMap[ScanStep.RIGHT_LITTLE_IND]?.toFingerDataY()
+        fingerRightLittle = scannedMap[ScanStep.RIGHT_LITTLE_IND]?.toFingerDataY(),
+       isSubmitted = true
     )
 
     /**
@@ -113,7 +114,8 @@ object DirectFingerUploader {
                     val path = if (strictMetadata) result.enhancedPath else result.enhancedPath.ifEmpty { result.rawPath }
                     if (path.isEmpty()) continue
                     val file = File(path)
-                    if (strictMetadata && !file.name.endsWith("_${step.name}_enhanced.jpg")) {
+                   /* if (strictMetadata && !file.name.endsWith("${step.name}_enhanced.jpg")) {*/
+                    if (strictMetadata && !file.name.endsWith("${step.name}_enhanced.jpg")) {
                         Log.e(TAG, "Image file identity mismatch for $partName: ${file.name}")
                         continue
                     }
@@ -128,8 +130,34 @@ object DirectFingerUploader {
                         partName, uploadFileName, file.asRequestBody(mime.toMediaTypeOrNull())
                     )
                 }
+
                 return null
             }
+                ////////todo raw image work
+
+               /* fun createOrgPart(partName: String, vararg steps: ScanStep): MultipartBody.Part? {
+                    for (step in steps) {
+                        val result = scannedMap[step] ?: continue
+                        val path = result.rawPath.ifEmpty { result.enhancedPath }
+                        if (path.isEmpty()) continue
+                        val file = File(path)
+                        if (!ScanResultStore.isValidJpeg(file)) {
+                            Log.w(TAG, "$partName (raw): JPEG missing, incomplete or invalid: $path")
+                            continue
+                        }
+                        val uploadFileName = file.name
+                        val mime = "image/jpeg"
+                        Log.d(TAG, "Uploading RAW $partName <- $uploadFileName (${file.length() / 1024} KB, $mime)")
+                        return MultipartBody.Part.createFormData(
+                            partName, uploadFileName, file.asRequestBody(mime.toMediaTypeOrNull())
+                        )
+                    }
+
+
+
+
+                return null
+            }*/
 
             val parts = linkedMapOf(
                 "leftThumb" to createPart("leftThumb", ScanStep.LEFT_THUMB_IND, ScanStep.LEFT_THUMB_GROUP),
@@ -143,7 +171,18 @@ object DirectFingerUploader {
                 "rightRing" to createPart("rightRing", ScanStep.RIGHT_RING_IND),
                 "rightLittle" to createPart("rightLittle", ScanStep.RIGHT_LITTLE_IND)
             )
-
+               /* val orgParts = linkedMapOf(
+                    "leftThumbOrg" to createOrgPart("leftThumbOrg", ScanStep.LEFT_THUMB_IND, ScanStep.LEFT_THUMB_GROUP),
+                    "leftIndexOrg" to createOrgPart("leftIndexOrg", ScanStep.LEFT_INDEX_IND),
+                    "leftMiddleOrg" to createOrgPart("leftMiddleOrg", ScanStep.LEFT_MIDDLE_IND),
+                    "leftRingOrg" to createOrgPart("leftRingOrg", ScanStep.LEFT_RING_IND),
+                    "leftLittleOrg" to createOrgPart("leftLittleOrg", ScanStep.LEFT_LITTLE_IND),
+                    "rightThumbOrg" to createOrgPart("rightThumbOrg", ScanStep.RIGHT_THUMB_IND, ScanStep.RIGHT_THUMB_GROUP),
+                    "rightIndexOrg" to createOrgPart("rightIndexOrg", ScanStep.RIGHT_INDEX_IND),
+                    "rightMiddleOrg" to createOrgPart("rightMiddleOrg", ScanStep.RIGHT_MIDDLE_IND),
+                    "rightRingOrg" to createOrgPart("rightRingOrg", ScanStep.RIGHT_RING_IND),
+                    "rightLittleOrg" to createOrgPart("rightLittleOrg", ScanStep.RIGHT_LITTLE_IND)
+                )*/
             val missing = parts.filterValues { it == null }.keys.toList()
             val sent = parts.filterValues { it != null }.keys.toList()
 

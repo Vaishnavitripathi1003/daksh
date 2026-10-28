@@ -18,7 +18,8 @@ class BrainDominanceHomeDetailScreen extends StatefulWidget {
 
 class _BrainDominanceDetailScreenState
     extends State<BrainDominanceHomeDetailScreen> {
-
+  static const Color _leftColor = Color(0xFF2563EB); // blue  - Left / Analytical
+  static const Color _rightColor = Color(0xFFEC4899); // pink - Right / Creative
   double _toPercentage(double? val) {
     if (val == null) return 0.0;
     return val <= 1.0 ? (val * 100) : val;
@@ -184,9 +185,9 @@ class _BrainDominanceDetailScreenState
                   const SizedBox(height: 24),
 
                   // 7. Unlock Full Brain Report Banner
-                  _buildUnlockBanner(context, isNarrow),
+                /*  _buildUnlockBanner(context, isNarrow),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 80),*/
                 ],
               ),
             ),
@@ -273,7 +274,7 @@ class _BrainDominanceDetailScreenState
     );
   }
 
-  Widget _buildOverallBalanceCard(
+ /* Widget _buildOverallBalanceCard(
       BuildContext context, bool isNarrow, double right, double left) {
     final isRightDominant = right >= left;
     final dominantTitle = isRightDominant
@@ -368,7 +369,101 @@ class _BrainDominanceDetailScreenState
       ),
     );
   }
+*/
 
+  Widget _buildOverallBalanceCard(
+      BuildContext context, bool isNarrow, double right, double left) {
+    final isRightDominant = right >= left;
+    final dominantTitle =
+    isRightDominant ? 'Right Brain Dominant' : 'Left Brain Dominant';
+    final dominantVal = isRightDominant ? right : left;
+    final dominantColor = isRightDominant ? _rightColor : _leftColor;
+
+    return Container(
+      padding: EdgeInsets.all(isNarrow ? 14 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE4E6),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(
+              child: Text('🧠', style: TextStyle(fontSize: 30)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Overall Brain Balance',
+                  style: TextStyle(
+                    fontSize: context.scaleFont(14),
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  dominantTitle,
+                  style: TextStyle(
+                    fontSize: context.scaleFont(13),
+                    fontWeight: FontWeight.bold,
+                    color: dominantColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Ring Chart Indicator
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: CircularProgressIndicator(
+                    value: (dominantVal / 100.0).clamp(0.0, 1.0),
+                    strokeWidth: 6,
+                    backgroundColor: dominantColor.withValues(alpha: 0.15),
+                    valueColor: AlwaysStoppedAnimation<Color>(dominantColor),
+                  ),
+                ),
+                Text(
+                  '${dominantVal.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: context.scaleFont(13),
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildBrainComparisonSection(
       BuildContext context, bool isNarrow, double right, double left) {
     return Container(

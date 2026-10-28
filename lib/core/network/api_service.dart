@@ -467,6 +467,40 @@ class ApiService {
     );
   }
 
+
+  ////todo disc personality work
+  Future<Response> findDiscPersonalityLifeStagesGuideByUserDataId({
+    required String auth,
+    required String userDataId,
+  }) async {
+    return _dio.get(
+      'findDiscPersonalityLifeStagesGuideByUserDataId',
+      queryParameters: {'userDataId': userDataId},
+      options: Options(headers: _buildAuthHeader(auth)),
+    );
+  }
+
+  Future<Response> findDiscPersonalityCombinationsSwotAnalysisByUserDataId({
+    required String auth,
+    required String userDataId,
+  }) async {
+    return _dio.get(
+      'findDiscPersonalityCombinationsSwotAnalysisByUserDataId',
+      queryParameters: {'userDataId': userDataId},
+      options: Options(headers: _buildAuthHeader(auth)),
+    );
+  }
+
+  Future<Response> findDiscPersonalityCombinationsRecommendationsByUserDataId({
+    required String auth,
+    required String userDataId,
+  }) async {
+    return _dio.get(
+      'findDiscPersonalityCombinationsRecommendationsByUserDataId',
+      queryParameters: {'userDataId': userDataId},
+      options: Options(headers: _buildAuthHeader(auth)),
+    );
+  }
 }
 
 ///new one to take report
